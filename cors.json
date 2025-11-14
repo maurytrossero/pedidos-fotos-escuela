@@ -1,0 +1,7 @@
+[
+  {
+    "origin": ["http://localhost:3000", "https://presupuestos.mtproducciones.com.ar/"],
+    "method": ["GET", "POST", "PUT", "HEAD"],
+    "maxAgeSeconds": 3600
+  }
+]
