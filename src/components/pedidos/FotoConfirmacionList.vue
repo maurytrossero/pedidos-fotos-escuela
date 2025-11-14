@@ -247,11 +247,14 @@ function enviarMensajeIndividual(pedido: any) {
     });
     return;
   }
+
   const telefono = (pedido.whatsapp || '').replace(/[^0-9]/g, '');
   if (!telefono) return;
+
   const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensajeMasivo.value)}`;
   window.open(url, '_blank');
 }
+
 
 async function enviarMensajesMasivos() {
   if (!mensajeMasivo.value.trim()) {

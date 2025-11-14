@@ -64,7 +64,7 @@
             <p>
               <strong>WhatsApp:</strong> {{ pedido.whatsapp }}
               <a
-                :href="whatsappLink(pedido.whatsapp, pedido.nombre)"
+                :href="whatsappLink(pedido.whatsapp)"
                 target="_blank"
                 rel="noopener"
                 class="link-whatsapp"
@@ -80,7 +80,8 @@
             {{ pedido.paquete }} + {{ pedido.fotosExtra }} extra(s)
           </p>
 
-          <p><strong>Estado:</strong>
+          <p>
+            <strong>Estado:</strong>
             <span :class="estadoColor(pedido.estado)">
               {{ pedido.estado || 'pendiente' }}
             </span>
@@ -93,17 +94,28 @@
           <!-- 🖼️ Fotos seleccionadas -->
           <div v-if="pedido.seleccionadas?.length" class="fotos-seleccionadas">
             <h4>Fotos Seleccionadas ({{ pedido.seleccionadas.length }})</h4>
+
             <div class="grid-fotos">
               <div
                 v-for="(url, i) in pedido.seleccionadas"
                 :key="i"
                 class="foto-wrapper"
               >
-                <img :src="url" alt="Foto seleccionada" class="foto-mini" @click="verAmpliada(url)" />
-                <p class="nombre-foto">{{ obtenerNombreArchivo(url) }}</p>
+                <img
+                  :src="url"
+                  alt="Foto seleccionada"
+                  class="foto-mini"
+                  @click="verAmpliada(url)"
+                />
+
+                <!-- ✔ Nombre real si existe, sino nombre desde URL -->
+                <p class="nombre-foto">
+                  {{ pedido.nombresArchivos?.[i] ?? obtenerNombreArchivo(url) }}
+                </p>
               </div>
             </div>
           </div>
+
           <p v-else class="sin-fotos">No hay fotos seleccionadas.</p>
         </div>
 
@@ -116,6 +128,7 @@
           >
             Aprobar
           </button>
+
           <button
             @click="eliminarPedidoConfirmado(pedido.id, pedido.nombre)"
             class="boton-eliminar"
@@ -144,6 +157,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { escucharPedidos, aprobarEstadoPedido, eliminarPedido } from '@/services/fotoConfirmacionService'
+import Swal from 'sweetalert2'
 
 const pedidos = ref<any[]>([])
 const filtro = ref<'todos' | 'pendiente' | 'aprobado' | 'completos' | 'incompletos'>('todos')
@@ -151,46 +165,44 @@ const busqueda = ref('')
 const busquedaWhatsapp = ref('')
 const loading = ref(true)
 const fotoAmpliada = ref<string | null>(null)
-const mensajeWhatsapp = ref('Hola 😊, notamos que aún no seleccionaste tus fotos. Te pedimos hacerlo a la brevedad.')
+const mensajeWhatsapp = ref(
+  'Hola 😊, notamos que aún no seleccionaste tus fotos. Te pedimos hacerlo a la brevedad.'
+)
 
 const isAuthenticated = computed(() => localStorage.getItem('token') !== null)
 
 const pedidosFiltrados = computed(() => {
   let lista = pedidos.value
 
-  // 🔒 Filtrado por estado
   if (isAuthenticated.value && ['pendiente', 'aprobado'].includes(filtro.value)) {
     lista = lista.filter(p => p.estado === filtro.value)
   }
 
-  // 📸 Filtrado por fotos seleccionadas
   if (filtro.value === 'completos') {
     lista = lista.filter(p => {
-      const totalPermitido = (p.paquete || 0) + (p.fotosExtra || 0)
-      const seleccionadas = p.seleccionadas?.length || 0
-      return seleccionadas >= totalPermitido && totalPermitido > 0
+      const total = (p.paquete || 0) + (p.fotosExtra || 0)
+      const cant = p.seleccionadas?.length || 0
+      return cant >= total && total > 0
     })
   }
 
   if (filtro.value === 'incompletos') {
     lista = lista.filter(p => {
-      const totalPermitido = (p.paquete || 0) + (p.fotosExtra || 0)
-      const seleccionadas = p.seleccionadas?.length || 0
-      return seleccionadas < totalPermitido || seleccionadas === 0
+      const total = (p.paquete || 0) + (p.fotosExtra || 0)
+      const cant = p.seleccionadas?.length || 0
+      return cant < total || cant === 0
     })
   }
 
-  // 🔎 Filtro por nombre
   if (busqueda.value.trim()) {
-    const texto = busqueda.value.toLowerCase()
-    lista = lista.filter(p => p.nombre?.toLowerCase().includes(texto))
+    const t = busqueda.value.toLowerCase()
+    lista = lista.filter(p => p.nombre?.toLowerCase().includes(t))
   }
 
-  // ☎️ Filtro por número de WhatsApp
   if (busquedaWhatsapp.value.trim()) {
-    const numero = busquedaWhatsapp.value.replace(/[^0-9]/g, '')
+    const n = busquedaWhatsapp.value.replace(/[^0-9]/g, '')
     lista = lista.filter(p =>
-      (p.whatsapp || '').replace(/[^0-9]/g, '').includes(numero)
+      (p.whatsapp || '').replace(/[^0-9]/g, '').includes(n)
     )
   }
 
@@ -206,27 +218,77 @@ function estadoColor(estado: string) {
 }
 
 async function aprobarPedido(id: string) {
-  await aprobarEstadoPedido(id)
-}
+  const result = await Swal.fire({
+    title: '¿Aprobar pedido?',
+    text: 'Confirmá que el pago fue acreditado correctamente.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#10b981',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Sí, aprobar',
+    cancelButtonText: 'Cancelar'
+  })
 
-async function eliminarPedidoConfirmado(id: string, nombre: string) {
-  if (!confirm(`¿Eliminar el pedido de "${nombre}"?`)) return
+  if (!result.isConfirmed) return
+
   try {
-    await eliminarPedido(id)
-    pedidos.value = pedidos.value.filter(p => p.id !== id)
-    alert(`Pedido de "${nombre}" eliminado ✅`)
+    await aprobarEstadoPedido(id)
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Pedido aprobado',
+      text: 'El pedido fue marcado como pagado correctamente.',
+      confirmButtonColor: '#10b981'
+    })
   } catch {
-    alert('❌ Error eliminando pedido')
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'No se pudo aprobar el pedido.',
+      confirmButtonColor: '#d33'
+    })
   }
 }
 
-function whatsappLink(whatsapp: string | undefined, nombre: string) {
-  const telefono = (whatsapp || '').replace(/[^0-9]/g, '')
-  const mensaje = mensajeWhatsapp.value ? `${mensajeWhatsapp.value}` : ''
-  const url = `https://wa.me/${telefono}${mensaje ? `?text=${encodeURIComponent(mensaje)}` : ''}`
-  return url
+async function eliminarPedidoConfirmado(id: string, nombre: string) {
+  const result = await Swal.fire({
+    title: '¿Eliminar pedido?',
+    text: `Se eliminará el pedido de "${nombre}". Esta acción no se puede deshacer.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  })
+
+  if (!result.isConfirmed) return
+
+  try {
+    await eliminarPedido(id)
+    pedidos.value = pedidos.value.filter(p => p.id !== id)
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Pedido eliminado',
+      text: `El pedido de "${nombre}" fue eliminado correctamente.`,
+      confirmButtonColor: '#10b981'
+    })
+  } catch {
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Hubo un problema eliminando el pedido.',
+      confirmButtonColor: '#d33'
+    })
+  }
 }
 
+function whatsappLink(whatsapp: string | undefined) {
+  const tel = (whatsapp || '').replace(/[^0-9]/g, '')
+  const msg = mensajeWhatsapp.value || ''
+  return `https://wa.me/${tel}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`
+}
 
 function verAmpliada(url: string) {
   fotoAmpliada.value = url
@@ -235,20 +297,22 @@ function verAmpliada(url: string) {
 function obtenerNombreArchivo(url: string) {
   try {
     const partes = url.split('/')
-    const ultimaParte = partes[partes.length - 1]
-    return decodeURIComponent(ultimaParte.split('?')[0])
+    const ultima = partes[partes.length - 1]
+    return decodeURIComponent(ultima.split('?')[0])
   } catch {
     return 'archivo'
   }
 }
 
-let unsubscribe: (() => void) | null = null
+let unsubscribe: null | (() => void) = null
+
 onMounted(() => {
   unsubscribe = escucharPedidos(data => {
     pedidos.value = data
     loading.value = false
   })
 })
+
 onUnmounted(() => {
   if (unsubscribe) unsubscribe()
 })

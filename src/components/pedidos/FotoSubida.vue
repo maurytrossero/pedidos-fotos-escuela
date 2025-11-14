@@ -8,14 +8,23 @@
     <!-- Controles solo si está autenticado -->
     <div v-if="isAuthenticated" class="controls">
       <div class="form-group">
-        <input
-          type="file"
-          multiple
-          @change="seleccionarArchivos"
-          accept="image/*"
-          class="input"
-        />
+        <div class="upload-wrapper">
+          <label for="fileInput" class="upload-boton">📁 Elegir archivos</label>
+          <span class="upload-nombre">
+            {{ archivos.length > 0 ? archivos.map(a => a.name).join(', ') : 'Ningún archivo seleccionado' }}
+          </span>
+          <input
+            id="fileInput"
+            type="file"
+            multiple
+            @change="seleccionarArchivos"
+            accept="image/*"
+            class="input-oculto"
+          />
+        </div>
       </div>
+
+      <!-- Botón Subir -->
       <button
         @click="subirFotos"
         :disabled="archivos.length === 0 || uploading"
@@ -23,10 +32,20 @@
       >
         {{ uploading ? 'Subiendo...' : 'Subir todas' }}
       </button>
+
+      <!-- Botón ELIMINAR TODAS -->
+      <button
+        v-if="isAuthenticated && fotosSubidas.length > 0"
+        class="boton eliminar-todas"
+        @click="eliminarTodas"
+      >
+        Eliminar TODAS las fotos
+      </button>
     </div>
 
     <!-- Galería -->
     <h3 style="margin-top:1rem;">Fotos cargadas</h3>
+
     <div v-if="loadingFotos" class="mensaje info">Cargando fotos...</div>
     <div v-else-if="fotosSubidas.length === 0" class="mensaje info">
       No hay fotos cargadas aún.
@@ -46,7 +65,7 @@
         />
         <p class="foto-nombre">{{ foto.nombre }}</p>
 
-        <!-- Botón eliminar solo si está autenticado -->
+        <!-- Botón eliminar individual -->
         <div v-if="isAuthenticated" class="foto-actions">
           <button class="boton eliminar" @click="confirmarYEliminar(foto)">
             Eliminar
@@ -63,10 +82,12 @@
   </div>
 </template>
 
+
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { uploadToCloudinary, eliminarDeCloudinary } from '@/services/cloudinaryService';
 import { guardarFoto, getFotosDisponibles, eliminarFoto } from '@/services/fotoService';
+import Swal from 'sweetalert2';
 
 interface FotoSubida {
   id?: string;
@@ -172,8 +193,18 @@ const confirmarYEliminar = async (foto: FotoSubida) => {
     return;
   }
 
-  const ok = window.confirm(`¿Eliminar "${foto.nombre}"?`);
-  if (!ok) return;
+  const result = await Swal.fire({
+    title: `¿Eliminar esta foto?`,
+    text: `"${foto.nombre}" será eliminada permanentemente.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  });
+
+  if (!result.isConfirmed) return;
 
   try {
     if (foto.publicId) await eliminarDeCloudinary(foto.publicId);
@@ -181,10 +212,51 @@ const confirmarYEliminar = async (foto: FotoSubida) => {
       await eliminarFoto(foto.id);
       fotosSubidas.value = fotosSubidas.value.filter(f => f.id !== foto.id);
     }
-    mostrarMensaje(`Foto "${foto.nombre}" eliminada ✅`, 'exito');
+
+    Swal.fire('Eliminada', 'La foto fue eliminada correctamente.', 'success');
   } catch (err) {
     console.error('Error eliminando foto', err);
-    mostrarMensaje('Error eliminando la foto', 'error');
+    Swal.fire('Error', 'Hubo un problema al eliminar la foto.', 'error');
+  }
+};
+
+
+const eliminarTodas = async () => {
+  if (!isAuthenticated.value) {
+    mostrarMensaje('Debes estar logueado para eliminar fotos', 'error');
+    return;
+  }
+
+  const result = await Swal.fire({
+    title: '¿Eliminar TODAS las fotos?',
+    text: 'Esta acción no se puede deshacer.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Sí, eliminar todo',
+    cancelButtonText: 'Cancelar'
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    // Eliminar en Cloudinary
+    for (const foto of fotosSubidas.value) {
+      if (foto.publicId) {
+        await eliminarDeCloudinary(foto.publicId);
+      }
+      if (foto.id) {
+        await eliminarFoto(foto.id);
+      }
+    }
+
+    fotosSubidas.value = [];
+
+    Swal.fire('Eliminado', 'Todas las fotos fueron eliminadas.', 'success');
+  } catch (err) {
+    console.error('Error eliminando todas las fotos:', err);
+    Swal.fire('Error', 'Hubo un problema al eliminar las fotos', 'error');
   }
 };
 
@@ -371,4 +443,66 @@ const abrirPreview = (url: string) => {
     font-size: 1.6rem;
   }
 }
+.boton.eliminar-todas {
+  background-color: #b91c1c;
+  color: white;
+  padding: 0.7rem 1.2rem;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  margin-left: 1.5rem;
+  margin-right: 1.5rem;
+}
+
+.boton.eliminar-todas:hover {
+  background-color: #991b1b;
+}
+/* --- Input archivo estilizado --- */
+
+.upload-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 1rem;
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+}
+
+.upload-boton {
+  background-color: #4a90e2;
+  color: white;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.upload-boton:hover {
+  background-color: #3b7bd5;
+}
+
+.upload-nombre {
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+/* Ocultamos el input real */
+.input-oculto {
+  display: none;
+}
+.acciones {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
 </style>
