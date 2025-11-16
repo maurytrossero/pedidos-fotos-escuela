@@ -1,4 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v2 as cloudinary } from 'cloudinary';
 
 // Configuración DIRECTA (sin env)
@@ -8,7 +7,7 @@ cloudinary.config({
   api_secret: "IZH1C35XrxZF9PGxpgG31Lv6Ekc",
 });
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   try {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method Not Allowed" });
