@@ -15,10 +15,8 @@ export default async function handler(req: any, res: any) {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
     const { publicId } = body;
 
-    // 🔍 LOG 1: Ver si llega el publicId
     console.log("PUBLICID RECIBIDO:", publicId);
 
-    // 🔍 LOG 2: Ver si las variables están cargadas
     console.log("Cloudinary env vars:", {
       name: process.env.CLOUDINARY_CLOUD_NAME,
       key: process.env.CLOUDINARY_API_KEY ? "OK" : "MISSING",
