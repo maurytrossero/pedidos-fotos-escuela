@@ -31,7 +31,6 @@
           <option disabled value="">Seleccionar</option>
           <option :value="1">1 foto - $5000</option>
           <option :value="2">2 fotos - $10000</option>
-          <option :value="3">3 fotos - $15000</option>
         </select>
       </div>
 
@@ -56,9 +55,9 @@
       <!-- Alias -->
       <div class="form-group">
         <label>Transferencia a alias</label>
-        <p class="alias"></p><!-- Escribir alias aqui Meli.barale.foto -->
+        <p class="alias"> leticiaboscarol</p><!-- Escribir alias aqui -->
         <small class="alias-tip">
-          Transferí el total a este alias y luego subí una captura del/los comprobante/s. También podes cargarlos más tarde en la opción Editar pedido.
+          Transferí el total a este alias y luego subí una captura del/los comprobante/s. También podes cargarlos más tarde en la opción Editar pedido, ingresando el número de whatsapp registrado.
         </small>
       </div>
 
