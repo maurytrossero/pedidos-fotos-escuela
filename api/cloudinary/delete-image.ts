@@ -6,7 +6,17 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET!,
 });
 
-export default async function handler(req: any, res: any) {
+interface Request {
+  method: string;
+  body: any;
+}
+
+interface Response {
+  status: (code: number) => Response;
+  json: (body: any) => void;
+}
+
+export default async function handler(req: Request, res: Response) {
   try {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method Not Allowed" });
@@ -30,8 +40,9 @@ export default async function handler(req: any, res: any) {
     const result = await cloudinary.uploader.destroy(publicId);
 
     return res.status(200).json({ success: true, result });
-  } catch (error: any) {
-    console.error("🔥 ERROR EN API CLOUDINARY:", error);
-    return res.status(500).json({ error: error.message });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("🔥 ERROR EN API CLOUDINARY:", err);
+    return res.status(500).json({ error: message });
   }
 }
