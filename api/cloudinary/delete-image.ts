@@ -1,10 +1,9 @@
 import { v2 as cloudinary } from "cloudinary";
 
-// Configuración DIRECTA (sin env)
 cloudinary.config({
-  cloud_name: "df4ims1w9",
-  api_key: "725172991676881",
-  api_secret: "IZH1C35XrxZF9PGxpgG31Lv6Ekc",
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+  api_key: process.env.CLOUDINARY_API_KEY!,
+  api_secret: process.env.CLOUDINARY_API_SECRET!,
 });
 
 export default async function handler(req: any, res: any) {
@@ -13,10 +12,18 @@ export default async function handler(req: any, res: any) {
       return res.status(405).json({ error: "Method Not Allowed" });
     }
 
-    // Asegura que el body llegue parseado
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-
     const { publicId } = body;
+
+    // 🔍 LOG 1: Ver si llega el publicId
+    console.log("PUBLICID RECIBIDO:", publicId);
+
+    // 🔍 LOG 2: Ver si las variables están cargadas
+    console.log("Cloudinary env vars:", {
+      name: process.env.CLOUDINARY_CLOUD_NAME,
+      key: process.env.CLOUDINARY_API_KEY ? "OK" : "MISSING",
+      secret: process.env.CLOUDINARY_API_SECRET ? "OK" : "MISSING",
+    });
 
     if (!publicId) {
       return res.status(400).json({ error: "publicId requerido" });
