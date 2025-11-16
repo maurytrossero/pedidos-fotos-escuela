@@ -35,7 +35,7 @@ export function getPixelatedUrl(url: string, nivel = 30): string {
 export async function eliminarDeCloudinary(publicId: string) {
   try {
     // Llamada a tu backend o endpoint de Cloudinary para eliminar
-    await axios.post("/api/cloudinary/delete-image", { publicId });
+  await axios.post("/api/cloudinary/delete-image", { publicId });
   } catch (error) {
     console.error('Error eliminando de Cloudinary', error);
     throw error;
